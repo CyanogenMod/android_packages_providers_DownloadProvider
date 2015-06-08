@@ -40,7 +40,7 @@
     <permission android:name="android.permission.ACCESS_ALL_DOWNLOADS"
         android:label="@string/permlab_accessAllDownloads"
         android:description="@string/permdesc_accessAllDownloads"
-        android:protectionLevel="signature"/>
+        android:protectionLevel="signatureOrSystem"/>
 
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_DOWNLOAD_MANAGER" />
