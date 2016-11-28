@@ -315,6 +315,7 @@ public class DownloadNotifier {
             // Calculate and show progress
             String remainingText = null;
             String percentText = null;
+            String speedText = null;
             String speedAsSizeText = null;
             if (type == TYPE_ACTIVE) {
                 long current = 0;
@@ -341,6 +342,8 @@ public class DownloadNotifier {
                             NumberFormat.getPercentInstance().format((double) current / total);
 
                     if (speed > 0) {
+                        speedText = res.getString(R.string.download_speed,
+                                Formatter.formatFileSize(mContext, speed));
                         final long remainingMillis = ((total - current) * 1000) / speed;
                         final int duration, durationResId;
 
@@ -370,6 +373,44 @@ public class DownloadNotifier {
                     builder.setProgress(100, 0, true);
                 }
             }
+			
+            int combo = 0;
+            if (!TextUtils.isEmpty(percentText)) {
+                combo += 1;
+            }
+            if (!TextUtils.isEmpty(speedText)) {
+                combo += 2;
+            }
+            if (!TextUtils.isEmpty(remainingText)) {
+                combo += 4;
+            }
+            String subtext;
+            switch (combo) {
+                case 1:
+                    subtext = percentText;
+                    break;
+                case 2:
+                    subtext = speedText;
+                    break;
+                case 3:
+                    subtext = speedText + ", " + percentText;
+                    break;
+                case 4:
+                    subtext = remainingText;
+                    break;
+                case 5:
+                    subtext = remainingText + ", " + percentText;
+                    break;
+                case 6:
+                    subtext = speedText + ", " + remainingText;
+                    break;
+                case 7:
+                    subtext = speedText + ", " + remainingText + ", " + percentText;
+                    break;
+                default:
+                    subtext = "";
+                    break;
+            }
 
             // Build titles and description
             final Notification notif;
@@ -387,12 +428,9 @@ public class DownloadNotifier {
                         final String description = cursor.getString(UpdateQuery.DESCRIPTION);
                         if (!TextUtils.isEmpty(description)) {
                             builder.setContentText(description);
-                        } else {
-                            builder.setContentText(remainingText);
                         }
                     }
-                    builder.setContentInfo(percentText);
-
+                    builder.setSubText(subtext);
                 } else if (type == TYPE_WAITING) {
                     builder.setContentText(
                             res.getString(R.string.notification_need_wifi_for_size));
@@ -431,8 +469,7 @@ public class DownloadNotifier {
                         builder.setContentTitle(res.getQuantityString(
                                 R.plurals.notif_summary_active, cluster.size(), cluster.size()));
                     }
-                    builder.setContentText(remainingText);
-                    builder.setContentInfo(percentText);
+                    builder.setSubText(subtext);
                     if (speedAsSizeText != null) {
                         inboxStyle.setSummaryText(res.getString(R.string.text_download_speed,
                                 remainingText, speedAsSizeText));
