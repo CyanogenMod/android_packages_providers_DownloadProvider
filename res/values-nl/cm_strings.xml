@@ -17,14 +17,22 @@
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
   <!-- Notification text containing download duration left and download speed -->
+  <string name="text_download_speed">%1$s, %2$s/s</string>
   <!-- Phrase describing a time duration using seconds [CHAR LIMIT=16] -->
+  <string name="duration_seconds">%d s</string>
   <!-- Phrase describing a time duration using minutes [CHAR LIMIT=16] -->
+  <string name="duration_minutes">%d min</string>
   <!-- Phrase describing a time duration using hours [CHAR LIMIT=16] -->
+  <string name="duration_hours">%d h</string>
   <!-- Status indicating that the download has been paused to start in the future.  Appears for an
         individual item in the download list.  [CHAR LIMIT=24] -->
   <string name="download_paused">Gepauzeerd</string>
   <!-- Representation of download progress percentage when paused. [CHAR LIMIT=24] -->
+  <string name="download_paused_percent">Gepauzeerd, %d%%</string>
   <!-- Text for button to manually resume all manually paused downloads [CHAR LIMIT=25] -->
+  <string name="button_resume_download">Hervatten</string>
   <!-- Text for button to manually manually pause all running downloads [CHAR LIMIT=25] -->
+  <string name="button_pause_download">pauze</string>
   <!-- Title summarizing paused downloads. [CHAR LIMIT=32] -->
+  <string name="notif_summary_paused">%d gepauzeerd</string>
 </resources>

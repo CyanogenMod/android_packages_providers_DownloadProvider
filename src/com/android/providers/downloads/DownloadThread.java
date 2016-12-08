@@ -387,7 +387,6 @@ public class DownloadThread extends Thread {
         }
 
         if (Downloads.Impl.isStatusCompleted(mInfoDelta.mStatus)) {
-            mInfo.sendIntentIfRequested();
             if (mInfo.shouldScanFile(mInfoDelta.mStatus)) {
                 DownloadScanner.requestScanBlocking(mContext, mInfo.mId, mInfoDelta.mFileName,
                         mInfoDelta.mMimeType);

@@ -18,7 +18,6 @@ package com.android.providers.downloads;
 
 import static android.provider.BaseColumns._ID;
 import static android.provider.Downloads.Impl.COLUMN_DESTINATION;
-import static android.provider.Downloads.Impl.COLUMN_MEDIAPROVIDER_URI;
 import static android.provider.Downloads.Impl.COLUMN_MEDIA_SCANNED;
 import static android.provider.Downloads.Impl.COLUMN_MIME_TYPE;
 import static android.provider.Downloads.Impl.DESTINATION_NON_DOWNLOADMANAGER_DOWNLOAD;
@@ -29,6 +28,7 @@ import android.app.DownloadManager;
 import android.app.DownloadManager.Request;
 import android.app.job.JobScheduler;
 import android.content.ContentProvider;
+import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
@@ -1077,10 +1077,14 @@ public final class DownloadProvider extends ContentProvider {
 
         Helpers.validateSelection(where, sAppReadableColumnsSet);
 
-        SQLiteDatabase db = mOpenHelper.getWritableDatabase();
+        final Context context = getContext();
+        final ContentResolver resolver = context.getContentResolver();
+
+        final SQLiteDatabase db = mOpenHelper.getWritableDatabase();
 
         int count;
         boolean updateSchedule = false;
+        boolean isCompleting = false;
 
         ContentValues filteredValues;
         if (Binder.getCallingPid() != Process.myPid()) {
@@ -1121,6 +1125,7 @@ public final class DownloadProvider extends ContentProvider {
             if (isRestart || isUserBypassingSizeLimit) {
                 updateSchedule = true;
             }
+            isCompleting = status != null && Downloads.Impl.isStatusCompleted(status);
         }
 
         int match = sURIMatcher.match(uri);
@@ -1137,14 +1142,20 @@ public final class DownloadProvider extends ContentProvider {
                 final SqlSelection selection = getWhereClause(uri, where, whereArgs, match);
                 count = db.update(DB_TABLE, filteredValues, selection.getSelection(),
                         selection.getParameters());
-                if (updateSchedule) {
+                if (updateSchedule || isCompleting) {
                     final long token = Binder.clearCallingIdentity();
-                    try {
-                        try (Cursor cursor = db.query(DB_TABLE, new String[] { _ID },
-                                selection.getSelection(), selection.getParameters(),
-                                null, null, null)) {
-                            while (cursor.moveToNext()) {
-                                Helpers.scheduleJob(getContext(), cursor.getInt(0));
+                    try (Cursor cursor = db.query(DB_TABLE, null, selection.getSelection(),
+                            selection.getParameters(), null, null, null)) {
+                        final DownloadInfo.Reader reader = new DownloadInfo.Reader(resolver,
+                                cursor);
+                        final DownloadInfo info = new DownloadInfo(context);
+                        while (cursor.moveToNext()) {
+                            reader.updateFromDatabase(info);
+                            if (updateSchedule) {
+                                Helpers.scheduleJob(context, info);
+                            }
+                            if (isCompleting) {
+                                info.sendIntentIfRequested();
                             }
                         }
                     } finally {
@@ -1207,7 +1218,10 @@ public final class DownloadProvider extends ContentProvider {
             Helpers.validateSelection(where, sAppReadableColumnsSet);
         }
 
-        final JobScheduler scheduler = getContext().getSystemService(JobScheduler.class);
+        final Context context = getContext();
+        final ContentResolver resolver = context.getContentResolver();
+        final JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+
         final SQLiteDatabase db = mOpenHelper.getWritableDatabase();
         int count;
         int match = sURIMatcher.match(uri);
@@ -1219,16 +1233,18 @@ public final class DownloadProvider extends ContentProvider {
                 final SqlSelection selection = getWhereClause(uri, where, whereArgs, match);
                 deleteRequestHeaders(db, selection.getSelection(), selection.getParameters());
 
-                try (Cursor cursor = db.query(DB_TABLE, new String[] {
-                        _ID, _DATA, COLUMN_MEDIAPROVIDER_URI
-                }, selection.getSelection(), selection.getParameters(), null, null, null)) {
+                try (Cursor cursor = db.query(DB_TABLE, null, selection.getSelection(),
+                        selection.getParameters(), null, null, null)) {
+                    final DownloadInfo.Reader reader = new DownloadInfo.Reader(resolver, cursor);
+                    final DownloadInfo info = new DownloadInfo(context);
                     while (cursor.moveToNext()) {
-                        final long id = cursor.getLong(0);
-                        scheduler.cancel((int) id);
-                        revokeAllDownloadsPermission(id);
-                        DownloadStorageProvider.onDownloadProviderDelete(getContext(), id);
+                        reader.updateFromDatabase(info);
+                        scheduler.cancel((int) info.mId);
 
-                        final String path = cursor.getString(1);
+                        revokeAllDownloadsPermission(info.mId);
+                        DownloadStorageProvider.onDownloadProviderDelete(getContext(), info.mId);
+
+                        final String path = info.mFileName;
                         if (!TextUtils.isEmpty(path)) {
                             try {
                                 final File file = new File(path).getCanonicalFile();
@@ -1241,7 +1257,7 @@ public final class DownloadProvider extends ContentProvider {
                             }
                         }
 
-                        final String mediaUri = cursor.getString(2);
+                        final String mediaUri = info.mMediaProviderUri;
                         if (!TextUtils.isEmpty(mediaUri)) {
                             final long token = Binder.clearCallingIdentity();
                             try {
@@ -1250,6 +1266,13 @@ public final class DownloadProvider extends ContentProvider {
                             } finally {
                                 Binder.restoreCallingIdentity(token);
                             }
+                        }
+
+                        // If the download wasn't completed yet, we're
+                        // effectively completing it now, and we need to send
+                        // any requested broadcasts
+                        if (!Downloads.Impl.isStatusCompleted(info.mStatus)) {
+                            info.sendIntentIfRequested();
                         }
                     }
                 }
@@ -1262,6 +1285,12 @@ public final class DownloadProvider extends ContentProvider {
                 throw new UnsupportedOperationException("Cannot delete URI: " + uri);
         }
         notifyContentChanged(uri, match);
+        final long token = Binder.clearCallingIdentity();
+        try {
+            Helpers.getDownloadNotifier(getContext()).update();
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
         return count;
     }
 

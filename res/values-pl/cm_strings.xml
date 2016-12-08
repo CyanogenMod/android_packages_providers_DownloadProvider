@@ -28,9 +28,11 @@
         individual item in the download list.  [CHAR LIMIT=24] -->
   <string name="download_paused">Wstrzymano</string>
   <!-- Representation of download progress percentage when paused. [CHAR LIMIT=24] -->
+  <string name="download_paused_percent">Wstrzymano, %d%%</string>
   <!-- Text for button to manually resume all manually paused downloads [CHAR LIMIT=25] -->
   <string name="button_resume_download">Wznów</string>
   <!-- Text for button to manually manually pause all running downloads [CHAR LIMIT=25] -->
   <string name="button_pause_download">pauza</string>
   <!-- Title summarizing paused downloads. [CHAR LIMIT=32] -->
+  <string name="notif_summary_paused">%d wstrzymano</string>
 </resources>
