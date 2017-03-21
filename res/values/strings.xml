@@ -66,6 +66,9 @@
         to send notifications about completed downloads. Malicious apps
         can use this to confuse other apps that download
         files.</string>
+		
+    <!-- Transfer speed for current download/s. -->
+    <string name="download_speed"><xliff:g id="duration">%s</xliff:g>/s</string>
 
     <!-- Title for permission to see all downloads to EXTERNAL [CHAR LIMIT=25] -->
     <string name="permlab_seeAllExternal" product="nosdcard">See all downloads to USB storage</string>
